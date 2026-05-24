@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Horloge de Nuit (Verrouillée)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: none; /* Masque la souris */
+            touch-action: none; 
+        }
+
+        #screensaver {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            background-color: #000000;
+        }
+
+        #clock {
+            position: absolute;
+            color: rgba(220, 60, 40, 0.7); /* Rouge tamisé */
+            font-size: clamp(40px, 14vw, 120px); 
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(220, 60, 40, 0.4);
+            white-space: nowrap;
+            user-select: none;
+            will-change: transform;
+        }
+
+        .info-text {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(220, 60, 40, 0.15);
+            font-size: clamp(0.6rem, 2vw, 0.8rem);
+            letter-spacing: 1px;
+            font-family: sans-serif;
+            text-align: center;
+            width: 90%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="screensaver">
+        <canvas id="starsCanvas"></canvas>
+        <div id="clock">00:00:00</div>
+        <div class="info-text">Cliquez ou touchez l'écran pour quitter</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('starsCanvas');
+        const ctx = canvas.getContext('2d');
+        const clock = document.getElementById('clock');
+
+        let clockX = window.innerWidth / 2;
+        let clockY = window.innerHeight / 2;
+        let dx = 0.25; 
+        let dy = 0.15;
+
+        function resizeComponents() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            clockX = window.innerWidth / 2;
+            clockY = window.innerHeight / 2;
+        }
+        resizeComponents();
+        window.addEventListener('resize', resizeComponents);
+        window.addEventListener('orientationchange', resizeComponents);
+
+        // --- HORLOGE ---
+        function updateClock() {
+            const now = new Date();
+            clock.textContent = now.toLocaleTimeString('fr-FR');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- ANTI-MARQUAGE ---
+        function moveClock() {
+            const clockWidth = clock.offsetWidth;
+            const clockHeight = clock.offsetHeight;
+            
+            if (clockX + clockWidth / 2 >= window.innerWidth || clockX - clockWidth / 2 <= 0) dx = -dx;
+            if (clockY + clockHeight / 2 >= window.innerHeight || clockY - clockHeight / 2 <= 0) dy = -dy;
+
+            clockX += dx;
+            clockY += dy;
+
+            clock.style.left = `${clockX - clockWidth / 2}px`;
+            clock.style.top = `${clockY - clockHeight / 2}px`;
+        }
+
+        // --- ÉTOILES ---
+        const stars = [];
+        const starCount = Math.min(50, window.innerWidth / 15);
+        for (let i = 0; i < starCount; i++) {
+            stars.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                size: Math.random() * 1.2 + 0.3,
+                alpha: Math.random(),
+                speed: Math.random() * 0.008 + 0.003
+            });
+        }
+
+        function drawStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(star => {
+                star.alpha += star.speed;
+                if (star.alpha > 0.8 || star.alpha < 0.1) star.speed = -star.speed;
+                
+                ctx.fillStyle = `rgba(220, 60, 40, ${star.alpha * 0.25})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function loop() {
+            drawStars();
+            moveClock();
+            requestAnimationFrame(loop);
+        }
+        loop();
+
+        // --- SORTIE DE VEILLE (MOUVEMENT SOURIS SUPPRIMÉ) ---
+        function exitScreensaver() {
+            document.getElementById('screensaver').style.transform = 'scale(0)';
+            document.getElementById('screensaver').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('screensaver').style.display = 'none';
+                document.body.style.cursor = 'default';
+            }, 300);
+        }
+
+        // Uniquement les actions volontaires
+        window.addEventListener('keydown', exitScreensaver);  // Touche clavier
+        window.addEventListener('click', exitScreensaver);    // Clic souris
+        window.addEventListener('touchstart', exitScreensaver); // Appui tactile
+    </script>
+</body>
+</html>
