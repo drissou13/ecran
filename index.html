@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Horloge de Nuit (Verrouillée)</title>
+    <title>Horloge de Nuit (Effet DVD)</title>
     <style>
         * {
             margin: 0;
@@ -29,17 +29,17 @@
             height: 100vh;
             z-index: 9999;
             background-color: #000000;
+            transition: transform 0.3s ease, opacity 0.3s ease;
         }
 
         #clock {
             position: absolute;
-            color: rgba(220, 60, 40, 0.7); /* Rouge tamisé */
+            color: rgb(220, 60, 40); /* Couleur initiale */
             font-size: clamp(40px, 14vw, 120px); 
             font-weight: bold;
-            text-shadow: 0 0 20px rgba(220, 60, 40, 0.4);
             white-space: nowrap;
             user-select: none;
-            will-change: transform;
+            will-change: transform, left, top;
         }
 
         .info-text {
@@ -47,7 +47,7 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            color: rgba(220, 60, 40, 0.15);
+            color: rgba(255, 255, 255, 0.15);
             font-size: clamp(0.6rem, 2vw, 0.8rem);
             letter-spacing: 1px;
             font-family: sans-serif;
@@ -70,16 +70,34 @@
         const ctx = canvas.getContext('2d');
         const clock = document.getElementById('clock');
 
-        let clockX = window.innerWidth / 2;
-        let clockY = window.innerHeight / 2;
-        let dx = 0.25; 
-        let dy = 0.15;
+        // Position initiale (en haut à gauche pour simplifier les calculs de collision)
+        let clockX = 100;
+        let clockY = 100;
+        
+        // Vitesse de déplacement (ajustée pour l'effet DVD)
+        let dx = 2; 
+        let dy = 2;
+
+        // Liste de couleurs éclatantes pour l'effet DVD
+        const colors = [
+            'rgb(220, 60, 40)',   // Rouge
+            'rgb(40, 220, 100)',  // Vert
+            'rgb(40, 150, 220)',  // Bleu
+            'rgb(220, 200, 40)',  // Jaune
+            'rgb(200, 40, 220)',  // Magenta
+            'rgb(40, 220, 220)',  // Cyan
+            'rgb(255, 140, 0)'    // Orange
+        ];
+
+        function changeColor() {
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            clock.style.color = randomColor;
+            clock.style.textShadow = `0 0 20px ${randomColor.replace('rgb', 'rgba').replace(')', ', 0.6)')}`;
+        }
 
         function resizeComponents() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            clockX = window.innerWidth / 2;
-            clockY = window.innerHeight / 2;
         }
         resizeComponents();
         window.addEventListener('resize', resizeComponents);
@@ -92,23 +110,39 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+        changeColor(); // Applique la première couleur et l'ombre au démarrage
 
-        // --- ANTI-MARQUAGE ---
+        // --- ANIMATION STYLE DVD ---
         function moveClock() {
             const clockWidth = clock.offsetWidth;
             const clockHeight = clock.offsetHeight;
-            
-            if (clockX + clockWidth / 2 >= window.innerWidth || clockX - clockWidth / 2 <= 0) dx = -dx;
-            if (clockY + clockHeight / 2 >= window.innerHeight || clockY - clockHeight / 2 <= 0) dy = -dy;
+            let hit = false;
 
+            // Rebond horizontal
+            if (clockX + dx + clockWidth > window.innerWidth || clockX + dx < 0) {
+                dx = -dx;
+                hit = true;
+            }
+            // Rebond vertical
+            if (clockY + dy + clockHeight > window.innerHeight || clockY + dy < 0) {
+                dy = -dy;
+                hit = true;
+            }
+
+            if (hit) {
+                changeColor();
+            }
+
+            // Mise à jour des coordonnées
             clockX += dx;
             clockY += dy;
 
-            clock.style.left = `${clockX - clockWidth / 2}px`;
-            clock.style.top = `${clockY - clockHeight / 2}px`;
+            // Application des styles
+            clock.style.left = `${clockX}px`;
+            clock.style.top = `${clockY}px`;
         }
 
-        // --- ÉTOILES ---
+        // --- ÉTOILES ARRIÈRE-PLAN ---
         const stars = [];
         const starCount = Math.min(50, window.innerWidth / 15);
         for (let i = 0; i < starCount; i++) {
@@ -127,34 +161,37 @@
                 star.alpha += star.speed;
                 if (star.alpha > 0.8 || star.alpha < 0.1) star.speed = -star.speed;
                 
-                ctx.fillStyle = `rgba(220, 60, 40, ${star.alpha * 0.25})`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha * 0.15})`;
                 ctx.beginPath();
                 ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                 ctx.fill();
             });
         }
 
+        // --- BOUCLE PRINCIPALE ---
         function loop() {
             drawStars();
             moveClock();
             requestAnimationFrame(loop);
         }
-        loop();
+        
+        // Attendre un court instant que le layout soit calculé pour lancer proprement
+        setTimeout(loop, 100);
 
-        // --- SORTIE DE VEILLE (MOUVEMENT SOURIS SUPPRIMÉ) ---
+        // --- SORTIE DE VEILLE ---
         function exitScreensaver() {
-            document.getElementById('screensaver').style.transform = 'scale(0)';
-            document.getElementById('screensaver').style.opacity = '0';
+            const screensaver = document.getElementById('screensaver');
+            screensaver.style.transform = 'scale(0)';
+            screensaver.style.opacity = '0';
             setTimeout(() => {
-                document.getElementById('screensaver').style.display = 'none';
+                screensaver.style.display = 'none';
                 document.body.style.cursor = 'default';
             }, 300);
         }
 
-        // Uniquement les actions volontaires
-        window.addEventListener('keydown', exitScreensaver);  // Touche clavier
-        window.addEventListener('click', exitScreensaver);    // Clic souris
-        window.addEventListener('touchstart', exitScreensaver); // Appui tactile
+        window.addEventListener('keydown', exitScreensaver);  
+        window.addEventListener('click', exitScreensaver);    
+        window.addEventListener('touchstart', exitScreensaver);
     </script>
 </body>
 </html>
